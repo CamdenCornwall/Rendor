@@ -148,7 +148,6 @@ var canvas,
         descibeW = 30,
         descibeH = 1.25;
         gameStarted = false,
-                menuM = false,
 playerSelected = false;
 
 var choice = [];
@@ -163,12 +162,6 @@ for (var i = 0; i < powerTotal; i++) {
     powerUp.push([powX + randomThrough(), powY, powW, powH, speed - 2]);
     powX += powW;
 }
-    
-function menuAudio() {
-    document.getElementById("menumusic").currentTime = 0;
-    menumusic.play();
-}
-
 
 //Clears the canvas so it can be updated
 function clearCanvas() {
@@ -695,9 +688,8 @@ function init() {
     //document.addEventListener('keydown', scoreTotal, false);
     //canvas.addEventListener('click', gameStart, false);
     //canvas.addEventListener('keydown', playerSelect, false);
-
-    //Sound
-    if(menuM === true){menuAudio();}else{}
+    
+    
     gameLoop();
 
 }
@@ -1162,7 +1154,10 @@ function gamemusic() {
     document.getElementById("music").currentTime = 0;
     music.play();
 }
-
+function menuAudio() {
+    document.getElementById("menumusic").currentTime = 0;
+    menumusic.play();
+}
 
 
 window.onload = init;
