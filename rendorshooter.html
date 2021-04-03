@@ -80,7 +80,7 @@
 <source src="rendorMedia/music.wav" type="audio/wav">
 </audio>
 
-<audio id="menumusic" loop>
+<audio id="menumusic" loop muted>
 <source src="rendorMedia/menumusic.mp3" type="audio/mp3">
 </audio>
 
@@ -163,6 +163,10 @@ for (var i = 0; i < powerTotal; i++) {
     powerUp.push([powX + randomThrough(), powY, powW, powH, speed - 2]);
     powX += powW;
 }
+    
+    function mute() {
+        document.getElementById('menumusic').muted = true;
+    }
 
 
 //Clears the canvas so it can be updated
@@ -1169,5 +1173,6 @@ window.onload = init;
 
 <body>
 <canvas id="canvas" width="600" height="600"></canvas>
+    <button onclick="mute()">Music</button>
 </body>
 </html>
