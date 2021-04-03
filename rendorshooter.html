@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Rendor - A JavaScript Shoot 'em ups</title>
+<link href='http://fonts.googleapis.com/css?family=VT323' rel='stylesheet' />
+<link href='http://fonts.googleapis.com/css?family=Press+Start+2P' rel='stylesheet'>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<style>
+    @font-face {
+    font-family: Start;
+    src: url(../../../DinoApp/fontsDino/PressStart2P.ttf);
+}
+    @font-face {
+    font-family: VT323;
+    src: url(../../../DinoApp/fontsDino/VT323-Regular.ttf);
+}
+    
+    body {
+        padding:0;
+        margin:0;
+        background:grey;
+    }
+    canvas {
+        display:block;
+        margin:30px auto 0;
+        border:1px solid #ccc;
+        background:#000;
+    }
+    @keyframes blink {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+    img {
+        animation: blink 1s;
+        animation-iteration-count: infinite;
+    }
+    div {
+        font-family: 'Press Start 2P', cursive;
+    }
+
+</style>
+
+<audio id="shootsnd">
+<source src="../../../DinoApp/rendorMedia/shootsnd.wav" type="audio/wav">
+</audio>
+
+<audio id="stageAd">
+<source src="../../../DinoApp/rendorMedia/stageAdvance.wav" type="audio/wav">
+</audio>
+
+<audio id="select">
+<source src="../../../DinoApp/rendorMedia/select.wav" type="audio/wav">
+</audio>
+
+<audio id="selection" loop>
+<source src="../../../DinoApp/rendorMedia/selection.wav" type="audio/wav">
+</audio>
+
+<audio id="oneup">
+<source src="../../../DinoApp/rendorMedia/oneup.wav" type="audio/wav">
+</audio>
+
+<audio id="enemyht">
+<source src="../../../DinoApp/rendorMedia/enemyhit.wav" type="audio/wav">
+</audio>
+
+<audio id="poweredUp">
+<source src="../../../DinoApp/rendorMedia/poweredUp.wav" type="audio/wav">
+</audio>
+
+<audio id="music" loop>
+<source src="../../../DinoApp/rendorMedia/music.wav" type="audio/wav">
+</audio>
+
+<audio id="menumusic" loop>
+<source src="../../../DinoApp/rendorMedia/menumusic.wav" type="audio/wav">
+</audio>
+
+<audio id="explode"> <!--You Got Hit-->
+<source src="../../../DinoApp/rendorMedia/explosion.wav" type="audio/wav">
+</audio>
+
+<audio id="bbombSound">
+<source src="../../../DinoApp/rendorMedia/bbombSound.wav" type="audio/wav">
+</audio>
+
+<script>
+var canvas,
+        ctx,
+        width = 600,
+        height = 600,
+        enemyTotal = 5,
+        enemies = [],
+        enemy_x = 48, //enemy dimentions
+        enemy_y = -48,
+        enemy_w = 48,
+        enemy_h = 48,
+        speed = 5,
+        enemy,
+        rightKey = false,
+        leftKey = false,
+        upKey = false,
+        downKey = false,
+        ship,
+        shipActor = 'white',
+        ship_x = (width / 2) - 25, ship_y = height - 75, ship_w = 48, ship_h = 48, //ship dimentions
+        shipSpeed = 5,
+        laserTotal = 1,
+        laserTotal2 = 1,
+        laserSpeed = 10,
+        laserX = 24,
+        laserWidth = 4,
+        laserLength = 20,
+        lasers = [],
+        lasers2 = [],
+        dualLaser = false,
+        penLaser = false,
+        pennyLaser = 0,
+        powerUp = [], //power up dimentions
+        powerTotal = 1,
+        powerIs = 0,
+        power,
+        powX = 48,
+        powY = -48,
+        powW = 48,
+        powH = 48,
+        hitPow = false,
+        bbombs = 1,
+        bbombLive = false,
+        score = 0,
+        alive = true,
+        lives = 3,
+        stage = 1,
+        blinking = false,
+        starfield,
+        starSpeed = 1,
+        starX = 0, starY = 0, starY2 = -600,
+        selectChar,
+        selectSquare = ["white"],
+        descibeW = 30,
+        descibeH = 1.25;
+        gameStarted = false,
+                //continueGame = false,
+playerSelected = false;
+
+var choice = [];
+
+//Array to hold all the enemies on screen
+for (var i = 0; i < enemyTotal; i++) {
+    enemies.push([enemy_x, enemy_y, enemy_w, enemy_h, speed]);
+    enemy_x += enemy_w + 60;//plus 60 is the next one on the array distance from the first
+}
+//array to hold the pows on screen
+for (var i = 0; i < powerTotal; i++) {
+    powerUp.push([powX + randomThrough(), powY, powW, powH, speed - 2]);
+    powX += powW;
+}
+
+
+//Clears the canvas so it can be updated
+function clearCanvas() {
+    ctx.clearRect(0, 0, width, height);
+}
+
+
+//If an arrow key is being pressed, moves the ship in the right direction
+function drawShip() {
+    if (rightKey)
+        ship_x += shipSpeed;
+    else if (leftKey)
+        ship_x -= shipSpeed;
+    if (upKey)
+        ship_y -= shipSpeed;
+    else if (downKey)
+        ship_y += shipSpeed;
+    if (ship_x <= 0)
+        ship_x = 0;
+    if ((ship_x + ship_w) >= width)
+        ship_x = width - ship_w;
+    if (ship_y <= 0)
+        ship_y = 0;
+    if ((ship_y + ship_h) >= height)
+        ship_y = height - ship_h;
+    ctx.drawImage(ship, ship_x, ship_y);
+}
+
+//Cycles through the array and draws the updated enemy position
+function drawEnemies() {
+    for (var i = 0; i < enemies.length; i++) {
+        ctx.drawImage(enemy, enemies[i][0], enemies[i][1]);
+    }
+}
+
+//This moves the enemies downwards on the canvas and if one passes the bottom of the canvas, it moves it to above the canvas
+function moveEnemies() {
+    for (var i = 0; i < enemies.length; i++) {
+        if (enemies[i][1] < height) {
+            enemies[i][1] += enemies[i][4];
+        } else if (enemies[i][1] > height - 1) {
+            enemies[i][1] = -45;
+            enemies[i][0] = randomThrough();
+        }
+    }
+}
+
+function randomThrough() {
+    var random = Math.floor(Math.random() * 450) + 1; 
+    return random;
+}
+function randomPower() {
+    powerList = ['../../../DinoApp/rendorMedia/pow-Lasers.png', '../../../DinoApp/rendorMedia/pow-Speed.png', '../../../DinoApp/rendorMedia/pow-BB.png'];
+    //powerList = ['rendorMedia/pow-Lasers.png', 'rendorMedia/pow-Speed.png','rendorMedia/pow-3way.png'];
+    var rand = powerList[Math.floor(Math.random() * powerList.length)];
+    if (rand == powerList[0]) {
+        powerIs = 'moreLasers';
+    }
+    else if (rand == powerList[1]){
+        powerIs = 'speedUp';
+    }
+//    else if (rand == powerList[2]){
+//        powerIs = 'gainLife';
+//    }
+    else if (rand == powerList[2]){
+        powerIs = 'bigBomb';
+    }
+    else if (rand == powerList[4]){
+        powerIs = '3way';
+    }
+    return rand;
+}
+
+function drawPow() { //width, heigth
+        for (var i = 0; i < powerUp.length; i++) {
+        ctx.drawImage(power, powerUp[i][0], powerUp[i][1]);
+    }    
+}
+function movePow() {
+    for (var i = 0; i < powerUp.length; i++) {
+        if (powerUp[i][1] < height) {
+            powerUp[i][1] += powerUp[i][4];
+        } else if (powerUp[i][1] > height - 1) {
+            powerUp[i][1] = -45;
+        }
+    }
+}
+
+function powerSendOut() {
+    //var powerPicture = randomPower();
+    power = new Image();
+    power.src = randomPower();
+    hitPow = false;
+
+}
+
+//If there are lasers in the lasers array, then this will draw them on the canvas
+function drawLaser() {
+    if (lasers.length)
+        for (var i = 0; i < lasers.length; i++) {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(lasers[i][0], lasers[i][1], lasers[i][2], lasers[i][3]);
+        }
+    if (dualLaser&& lasers2.length)
+        for (var j = 0; j < lasers2.length; j++) {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(lasers2[j][0], lasers2[j][1], lasers2[j][2], lasers2[j][3]);
+        }
+    if (penLaser && lasers2.length)
+        for (var j = 0; j < lasers2.length; j++) {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(lasers2[j][0], lasers2[j][1], lasers2[j][2], lasers2[j][3]);
+        }
+    if (wideLaser && lasers.length)
+        for (var i = 0; i < lasers.length; i++) {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(lasers[i][0], lasers[i][1], lasers[i][2], lasers[i][3], 12);
+        }
+}
+
+//If we're drawing lasers on the canvas, this moves them up the canvas
+function moveLaser() {
+    for (var i = 0; i < lasers.length; i++) {
+        if (lasers[i][1] > -11) {
+            lasers[i][1] -= laserSpeed;
+        } else if (lasers[i][1] < -10) {
+            lasers.splice(i, 1);
+        }
+    }
+    for (var j = 0; j < lasers2.length; j++) {
+        if (lasers2[j][1] > -11) {
+            lasers2[j][1] -= laserSpeed;
+        } else if (lasers2[j][1] < -10) {
+            lasers2.splice(j, 1);
+        }
+    }
+
+}
+
+//Runs a couple of loops to see if any of the lasers have hit any of the enemies
+function hitTest() {
+    var remove = false;
+    var remove2 = false;
+    for (var i = 0; i < lasers.length; i++) {
+        for (var j = 0; j < enemies.length; j++) {
+            if (lasers[i][1] <= (enemies[j][1] + enemies[j][3]) && lasers[i][0] >= enemies[j][0] && lasers[i][0] <= (enemies[j][0] + enemies[j][2])) {
+                remove = true;
+                enemies.splice(j, 1);
+                score += 10;
+                enemies.push([(Math.random() * 500) + 50, -45, enemy_w, enemy_h, speed]);
+                //sound
+                enemyhit();
+                checkScore();
+            }
+        }
+        if (remove == true) {
+            lasers.splice(i, 1);
+            remove = false;
+        }
+    }
+    if (dualLaser || penLaser)
+        for (var q = 0; q < lasers2.length; q++) {
+            for (var p = 0; p < enemies.length; p++) {
+                if (lasers2[q][1] <= (enemies[p][1] + enemies[p][3]) && lasers2[q][0] >= enemies[p][0] && lasers2[q][0] <= (enemies[p][0] + enemies[p][2])) {
+                    remove2 = true;
+                    enemies.splice(p, 1);
+                    score += 10;
+                    enemies.push([(Math.random() * 500) + 50, -45, enemy_w, enemy_h, speed]);
+                    //sound
+                    enemyhit();
+                    checkScore();
+                }
+            }
+            if (remove2 == true) {
+                lasers2.splice(q, 1);
+                remove2 = false;
+            }
+        }   
+}
+
+function bbombOff() {
+    
+        if (bbombLive == true) {
+        for (var j = 0; j <= enemyTotal; j++) {
+                remove = true;
+                score += 10;
+                enemies.splice(j, 1);
+                enemies.push([(Math.random() * 500) + 50, -45, enemy_w, enemy_h, speed]);
+                drawBbomb();
+                bbombSnd();
+                checkScore();
+            }
+            bbombLive = false;
+    }
+}
+
+//Similar to the laser hit test, this function checks to see if the player's ship collides with any of the enemies
+function shipCollision() {
+    var ship_xw = ship_x + ship_w,
+            ship_yh = ship_y + ship_h;
+    for (var i = 0; i < enemies.length; i++) {
+        if (ship_x > enemies[i][0] && ship_x < enemies[i][0] + enemy_w && ship_y > enemies[i][1] && ship_y < enemies[i][1] + enemy_h) {
+            checkLives();
+            explosion();
+        }
+        if (ship_xw < enemies[i][0] + enemy_w && ship_xw > enemies[i][0] && ship_y > enemies[i][1] && ship_y < enemies[i][1] + enemy_h) {
+            checkLives();
+            explosion();
+        }
+        if (ship_yh > enemies[i][1] && ship_yh < enemies[i][1] + enemy_h && ship_x > enemies[i][0] && ship_x < enemies[i][0] + enemy_w) {
+            checkLives();
+            explosion();
+        }
+        if (ship_yh > enemies[i][1] && ship_yh < enemies[i][1] + enemy_h && ship_xw < enemies[i][0] + enemy_w && ship_xw > enemies[i][0]) {
+            checkLives();
+            explosion();
+        }
+    }
+    ///////////////////////////////////////////////////////Power UP collision
+    for (var i = 0; i < powerUp.length; i++) {
+        if (ship_x > powerUp[i][0] && ship_x < powerUp[i][0] + powW && ship_y > powerUp[i][1] && ship_y < powerUp[i][1] + powH) {
+            applyPowerUp();
+            hitPow = true;
+            powerUp.splice(i, 1);
+            replacePow();
+            powering();
+            //The power up is still stuck "dimentionally" in the spot it last was
+        }
+        if (ship_xw < powerUp[i][0] + powW && ship_xw > powerUp[i][0] && ship_y > powerUp[i][1] && ship_y < powerUp[i][1] + powH) {
+            applyPowerUp();
+            hitPow = true;
+            powerUp.splice(i, 1);
+            replacePow();
+            powering();
+        }
+        if (ship_yh > powerUp[i][1] && ship_yh < powerUp[i][1] + powH && ship_x > powerUp[i][0] && ship_x < powerUp[i][0] + powW) {
+            applyPowerUp();
+            hitPow = true;
+            powerUp.splice(i, 1);
+            replacePow();
+            powering();
+        }
+        if (ship_yh > powerUp[i][1] && ship_yh < powerUp[i][1] + powH && ship_xw < powerUp[i][0] + powW && ship_xw > powerUp[i][0]) {
+            applyPowerUp();
+            hitPow = true;
+            powerUp.splice(i, 1);
+            replacePow();
+            powering();
+        }
+    }
+    
+}
+
+function replacePow() {
+    powerUp.push([powX + randomThrough(), powY, powW, powH, speed - 2]);
+}
+
+function applyPowerUp(){
+    if (powerIs == 'moreLasers') {
+        if (shipActor == 'white'|| shipActor == 'yellow' || shipActor == 'pink')
+            laserTotal += 2;
+        else if (shipActor == 'blue') {
+            laserTotal += 1;
+            laserSpeed += 2;
+        }
+        else if (shipActor == 'red') {
+            laserTotal += 1;
+            laserTotal2 += 1;
+        }
+    }
+    else if (powerIs == 'bigBomb') {
+        bbombs += 1;
+    }
+    else if (powerIs == 'speedUp'){
+        laserSpeed += 2;
+    }
+    else if (powerIs == '3way'){
+        
+    }
+    else if (powerIs == 'gainLife'){
+        lives += 1;
+        gainLife();
+    }
+}
+
+
+
+//This function runs whenever the player's ship hits an enemy and either subtracts a life or sets the alive variable to false if the player runs out of lives
+// Make player blink and take away a life, invincibility for 2 seconds.
+function checkLives() {
+    lives -= 1;
+    if (lives > 0) {
+        blink();
+        //reset();
+    } else if (lives == 0) {
+        alive = false;
+    }
+}
+function blink() {
+    //Need player to know they are invincible
+    blinking = true;
+    setTimeout(function () {
+        blinking = false;
+    }, 2000);
+}
+
+
+function checkScore() {
+    if (score % 1000 === 0) {
+        lives += 1;
+        gainLife();
+    }
+    if (score % 200 == 0) {
+        powerSendOut();
+    }
+    if (score % 550 == 0) {
+        //enemyTotal += 1;
+        speed += 1;
+        stage += 1;
+        starSpeed += 1;
+        stageAdvance();
+    }
+}
+
+//This simply resets the ship and enemies to their starting positions
+function reset() {
+    var enemy_reset_x = 50;
+    ship_x = (width / 2) - 25, ship_y = height - 75, ship_w = 50, ship_h = 57;
+    //Future get rid of this and instead make player flash and invulnerable for a few seconds
+    for (var i = 0; i < enemies.length; i++) {
+        enemies[i][0] = enemy_reset_x;
+        enemies[i][1] = -45;
+        enemy_reset_x = enemy_reset_x + enemy_w + 60;
+    }
+}
+
+//After the player loses all their lives, the continue button is shown and if clicked, it resets the game and removes the event listener for the continue button
+function continueButton() {
+    //var cursorPos = getCursorPos(e);
+    //if (cursorPos.x > (width / 2) - 53 && cursorPos.x < (width / 2) + 47 && cursorPos.y > (height / 2) + 10 && cursorPos.y < (height / 2) + 50) {
+      //if(continueGame == true){    
+        alive = true;
+        lives = 3;
+        score = 0;
+        speed = 5;
+        stage = 1;
+        starSpeed = 1;
+        enemyTotal = 5;
+        laserTotal = 1;
+        laserTotal2 = 1;
+        lasers = [];
+        lasers2 = [];
+        laserSpeed = 10;
+        dualLaser = false;
+        penLaser = false;
+        pennyLaser = 0,
+        hitPow = false;
+        powerIs = 0;
+        gameStarted = false;
+        playerSelected = false;
+        music.currentTime = 0;
+        menumusic.currentTime = 0;
+        select.currentTime = 0;
+        music.pause();
+        menumusic.play();
+        reset();
+        //canvas.removeEventListener('click', continueButton, false);
+        //continueGame == false;
+    }
+
+//holds the cursors position
+function cursorPosition(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+//finds the cursor's position after the mouse is clicked
+function getCursorPos(e) {
+    var x;
+    var y;
+    if (e.pageX || e.pageY) {
+        x = e.pageX;
+        y = e.pageY;
+    } else {
+        x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+        y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    }
+    x -= canvas.offsetLeft;
+    y -= canvas.offsetTop;
+    var cursorPos = new cursorPosition(x, y);
+    return cursorPos;
+}
+
+
+
+//Draws the text for the score and lives on the canvas and if the player runs out of lives, it's draws the game over text and continue button as well as adding the event listener for the continue button
+function scoreTotal(e) {
+    ctx.font = '12px Start';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Score: ', 10, 55);
+    ctx.fillText(score, 95, 55);
+    ctx.fillText('Lives:', 10, 30);
+    ctx.fillText(lives, 95, 30);
+    ctx.fillText('Stage:', 470, 580);
+    ctx.fillText(stage, 555, 580);
+    ctx.fillText('Bbombs:',10, 580);
+    ctx.fillText(bbombs, 105, 580);
+    ctx.fillText('LSpeed:',10, 555);
+    ctx.fillText(laserSpeed, 105, 555);
+    ctx.fillText('Lasers:',10, 530);
+    if(dualLaser){
+        ctx.fillText((laserTotal+laserTotal2)-(lasers.length+lasers2.length)+2, 105, 530);
+    }
+    else if(penLaser){
+        ctx.fillText(laserTotal-lasers.length+2, 105, 530);
+    }
+    else {
+    ctx.fillText(laserTotal-lasers.length+1, 105, 530); 
+    }
+    if (!gameStarted) {
+        ctx.font = 'bold 64px Start';
+        ctx.fillText('Rendor', width / 2 - 170, height / 2.5);
+        ctx.font = 'bold 18px Start';
+        ctx.fillText('Press   to Play', width / 2 - 125, height / 2.3 + 140);
+        ctx.fillStyle = 'red';
+        ctx.fillText('      X', width / 2 - 125, height / 2.3 + 140);
+        ctx.fillStyle = 'white';
+        //ctx.fillText('Use the arrow keys to move', width / 2 - 220, height / 2.2 + 20);
+        ctx.fillText('Use the            to move', width / 2 - 220, height / 2.2 + 20);
+        ctx.fillStyle = 'yellow';
+        ctx.fillText('        arrow keys', width / 2 - 220, height / 2.2 + 20);
+        ctx.fillStyle = 'white';
+        ctx.fillText('Use the   key to shoot', width / 2 - 210, height / 2.2 + 50);
+        ctx.fillStyle = 'red';
+        ctx.fillText('        X', width / 2 - 210, height / 2.2 + 50);
+        ctx.fillStyle = 'white';
+        ctx.fillText('Press   to use a Bbomb', width / 2 - 200, height / 2.2 + 80);
+        ctx.fillStyle = 'Aqua';
+        ctx.fillText('      Z', width / 2 - 200, height / 2.2 + 80);
+        ctx.fillStyle = 'white';
+    }
+    if (!playerSelected && gameStarted) {
+        ctx.font = 'bold 24px Start';
+        ctx.fillText('Select Player', width / 2 - 145, height / 5);
+        ctx.font = 'bold 16px Start';
+        ctx.fillText('Use the            to change ships', width / 2 - 275, height / 2 - 130);
+        ctx.fillStyle = 'yellow';
+        ctx.fillText('        arrow keys', width / 2 - 275, height / 2 - 130);
+        ctx.fillStyle = "white";
+        ctx.fillText('Press   to select', width / 2 - 125, height / 2 - 100);
+        ctx.fillStyle = "Aqua";
+        ctx.fillText('      Z', width / 2 - 125, height / 2 - 100);
+        ctx.fillStyle = "white";
+        ctx.drawImage(selectChar, width / 2 - 95, height / 2 - 80);
+        //eval(choice[0]);
+        //playerChooser(e);
+//    if (e == 39) {
+//        ctx.beginPath();
+//        ctx.lineWidth="6";
+//        ctx.strokeStyle="red";
+//        ctx.rect(width/3.015,height/2.56,7, 121);
+//        ctx.stroke();
+//    }
+//    else {
+//        ctx.beginPath();
+//        ctx.lineWidth="6";
+//        ctx.strokeStyle="blue";
+//        ctx.rect(width/3.015,height/2.56,7, 121);
+//        ctx.stroke();
+//    }
+    }
+
+    if (!alive) {
+        ctx.font = 'bold 50px VT323';
+        ctx.fillText('Game Over!', width / 2 - 100, height / 2);
+        ctx.font = 'bold 50px VT323';
+        ctx.fillRect(0, (height / 2) + 10, 600, 40);
+        ctx.fillStyle = '#000';
+        //ctx.fillText('Press Z to Continue?', width / 2 - 198, (height / 1.95) + 35);
+        ctx.fillText('Press Z to Try Again?', width / 2 - 215, (height / 1.95) + 35);
+        ctx.fillStyle = 'Aqua';
+        ctx.fillText('      Z', width / 2 - 213, (height / 1.96) + 35);
+        canvas.addEventListener('keyDown', continueButton, false);
+    }
+}
+
+//Draws and animates the background starfield
+function drawStarfield() {
+    ctx.drawImage(starfield, starX, starY);
+    ctx.drawImage(starfield, starX, starY2);
+    if (starY > 600) {
+        starY = -599;
+    }
+    if (starY2 > 600) {
+        starY2 = -599;
+    }
+    starY += starSpeed;
+    starY2 += starSpeed;
+}
+//Draws the BBombFlash
+function drawBbomb() {
+    ctx.drawImage(bbombFlash, 0, 0);
+}
+
+//The initial function called when the page first loads. Loads the ship, 
+//enemy and starfield images and adds the event listeners for the arrow keys. 
+//It then calls the gameLoop function.
+function init() {
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+    enemy = new Image();
+    enemy.src = '../../../DinoApp/rendorMedia/enemy.png';
+    ship = new Image();
+    ship.src = '../../../DinoApp/rendorMedia/ship.png';
+    selectChar = new Image();
+    selectChar.src = '../../../DinoApp/rendorMedia/selectCharacter.png';
+    starfield = new Image();
+    starfield.src = '../../../DinoApp/rendorMedia/starfield.png';
+    bbombFlash = new Image();
+    bbombFlash.src = '../../../DinoApp/rendorMedia/bbombStrike.png';
+
+    document.addEventListener('keydown', keyDown, false);
+    document.addEventListener('keyup', keyUp, false);
+    //document.addEventListener('keydown', scoreTotal, false);
+    //canvas.addEventListener('click', gameStart, false);
+    //canvas.addEventListener('keydown', playerSelect, false);
+
+    //Sound
+    menuAudio();
+    gameLoop();
+
+}
+
+function gameStart() {
+    gameStarted = true;
+    menumusic.pause();
+    selections();
+}
+function playerSelect() {
+    playerSelected = true;
+    gamemusic();
+    menumusic.pause();
+    selection.pause();
+}
+
+//The main function of the game, it calls all the other functions needed to make the game run
+function gameLoop() {
+    clearCanvas();
+    
+    if (bbombLive == true) {
+    bbombOff();
+    drawBbomb();  
+    }
+    else {   
+    drawStarfield();
+    }
+    if (gameStarted && !playerSelected){
+    playerSquare();
+    }
+    
+    if (alive && gameStarted && playerSelected && lives > 0) {
+        hitTest();
+        
+        //When ship gets hit create blink effect and grant invulnerability till setTime on blink()
+        var frequency = 100;
+        if (blinking == true && Math.floor(Date.now() / frequency) % 2) {
+            shipSpeed = 9;
+        } else if (!blinking) {
+            shipCollision();
+            drawShip();
+            shipSpeed = 5;
+        } else {
+            drawShip();
+        }
+        //Needs to be a true or false "score =" need hitPow to be made false 
+        if (score >= 200 && !hitPow){
+            drawPow();
+            movePow();
+        }
+        //scorething would be made false here
+        else if (hitPow == true) {
+            
+        }
+        
+    drawLaser();
+    moveLaser();
+    
+    moveEnemies();
+    drawEnemies();
+    
+
+    }
+    
+    playerChooser();
+    scoreTotal();
+    
+    game = setTimeout(gameLoop, 1000 / 30);
+}
+
+//Checks to see which key has been pressed and either to move the ship or fire a laser
+function keyDown(e) {
+    if (e.keyCode == 39)
+        rightKey = true;
+    else if (e.keyCode == 37)
+        leftKey = true;
+    if (e.keyCode == 38)
+        upKey = true;
+    else if (e.keyCode == 40)
+        downKey = true;
+    if (e.keyCode == 88 && playerSelected && lasers.length <= laserTotal) {
+        // laser starting point
+        lasers.push([ship_x + laserX, ship_y - 20, laserWidth, laserLength]);
+        shootsound();
+        //Penetration Laser (actual double laser)
+        if (penLaser) {
+            lasers.push([ship_x + laserX, ship_y - 20, laserWidth, laserLength]);
+        shootsound();
+        }
+    } //Dual laser
+    if (e.keyCode == 88 && dualLaser == true && lasers2.length <= laserTotal2) {
+            lasers2.push([ship_x + laserX + 20, ship_y - 20, laserWidth, laserLength]);
+        shootsound();
+        }
+    
+    if (e.keyCode == 88 && !gameStarted) {
+    gameStart();
+    }
+    if (e.keyCode == 90 && gameStarted && !playerSelected) {
+    playerSelect();
+    }
+    if (e.keyCode == 90 && bbombs > 0 && gameStarted && playerSelected){ //
+        //Let off BOMB!!!
+        bbombs -= 1;
+        bbombLive = true;
+        bbombOff();
+        drawBbomb();
+        hitTest();
+    
+    
+    }
+    if(!alive && e.keyCode == 90){
+        //continueGame = true;
+        continueButton();
+    }
+}
+
+//Checks to see if a pressed key has been released and stops the ships movement if it has
+function keyUp(e) {
+    if (e.keyCode == 39)
+        rightKey = false;
+    else if (e.keyCode == 37)
+        leftKey = false;
+    if (e.keyCode == 38)
+        upKey = false;
+    else if (e.keyCode == 40)
+        downKey = false;
+}
+
+function white() {
+    ctx.beginPath();
+    ctx.lineWidth = "6";
+    ctx.strokeStyle = "white";
+    ctx.rect(width / 2.22, height / 2 - 15, 65, 65);
+    ctx.stroke();
+            shipActor = 'white';
+            ship = new Image();
+            ship.src = '../../../DinoApp/rendorMedia/ship.png';
+            laserX = 24;
+            laserWidth = 4;
+            laserLength = 20;
+            laserSpeed = 10;
+            laserTotal = 1;
+            dualLaser = false;
+            penLaser = false;
+            wideLaser = false;
+            lives = 3;
+            bbombs = 2;
+            
+    ctx.font = 'bold 30px VT323';
+    ctx.fillStyle = "white";
+    ctx.fillText('Single Shot Laser', width / 2 + descibeW, height / descibeH);
+}
+function red() {
+    ctx.beginPath();
+    ctx.lineWidth = "6";
+    ctx.strokeStyle = "red";
+    ctx.rect(width / 1.78, height / 2 - 15, 65, 65);
+    ctx.stroke();
+            shipActor = 'red';
+            ship = new Image();
+            ship.src = '../../../DinoApp/rendorMedia/ship2.png';
+            laserX = 13;
+            laserWidth = 4;
+            laserLength = 20;
+            laserSpeed = 10;
+            laserTotal = 0;
+            laserTotal2 = 0;
+            dualLaser = true;
+            penLaser = false;
+            wideLaser = false;
+            lives = 3;
+            bbombs = 2;
+            
+    ctx.font = 'bold 30px VT323';
+    ctx.fillStyle = "red";
+    ctx.fillText('Dual Laser', width / 2 + descibeW, height / descibeH);
+}
+function blue() {
+    ctx.beginPath();
+    ctx.lineWidth = "6";
+    ctx.strokeStyle = "#0068de";
+    ctx.rect(width / 2.22, height / 2 - 83, 65, 65);
+    ctx.stroke();
+            shipActor = 'blue';
+            ship = new Image();
+            ship.src = '../../../DinoApp/rendorMedia/ship1.png';
+            laserX = 24;
+            laserWidth = 4;
+            laserLength = 20;
+            laserSpeed = 16;
+            laserTotal = 0;
+            shipSpeed = 5;
+            dualLaser = false;
+            penLaser = false;
+            wideLaser = false;
+            lives = 2;
+            bbombs = 1;
+            
+    ctx.font = 'bold 30px VT323'; 
+    ctx.fillStyle = "#0068de";
+    ctx.fillText('Quick Shot Laser', width / 2 + descibeW, height / descibeH);
+}
+function yellow() {
+    ctx.beginPath();
+    ctx.lineWidth = "6";
+    ctx.strokeStyle = "yellow";
+    ctx.rect(width / 2.22, height / 2 + 55, 65, 65);
+    ctx.stroke();
+            shipActor = 'yellow';
+            ship = new Image();
+            ship.src = '../../../DinoApp/rendorMedia/ship3.png';
+            laserX = 22;
+            laserWidth = 6;
+            laserLength = 20;
+            laserSpeed = 10;
+            laserTotal = 0;
+            //laserTotal2 = null;
+            dualLaser = false;
+            penLaser = true;
+            wideLaser = false;
+            lives = 4;
+            bbombs = 3;
+            
+    ctx.font = 'bold 30px VT323'; 
+    ctx.fillStyle = "yellow";
+    ctx.fillText('Penetration Laser', width / 2 + descibeW, height / descibeH);
+}
+
+function pink() {
+    ctx.beginPath();
+    ctx.lineWidth = "6";
+    ctx.strokeStyle = "HotPink";
+    ctx.rect(width / 3 + 4.6, height / 2 - 15, 65, 65);
+    ctx.stroke(); 
+            shipActor = 'pink';
+            ship = new Image();
+            ship.src = '../../../DinoApp/rendorMedia/ship5.png';
+            laserX = 24;
+            laserWidth = 4;
+            laserLength = 20;
+            laserSpeed = 10;
+            laserTotal = 1;
+            dualLaser = false;
+            penLaser = false;
+            wideLaser = true;
+            lives = 3;
+            bbombs = 2;
+            
+    ctx.font = 'bold 30px VT323';  
+    ctx.fillStyle = "HotPink";
+    ctx.fillText('Single Shot Laser', width / 2 + descibeW, height / descibeH);
+}
+
+function playerSquare() {
+    if (selectSquare[0] == "red"){
+        red();
+    }
+        else if (selectSquare[0] == "pink"){
+        pink();
+    }
+        else if (selectSquare[0] == "blue"){
+        blue();
+    }
+        else if (selectSquare[0] == "yellow"){
+        yellow();
+    }
+    else {
+        white();
+    }
+}
+
+
+function playerChooser() {
+    if (gameStarted && !playerSelected) {
+        if (selectSquare[0] == "white" && rightKey) {
+            setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //red();
+            selectSquare.push("red");
+            playerSquare();
+            selector();
+            }, 121);
+        } else if (selectSquare[0] == "red" && leftKey) {
+            setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //red();
+            selectSquare.push("white");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "red" && upKey) {
+            setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //red();
+            selectSquare.push("blue");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "red" && downKey) {
+            setTimeout(function(){    
+            selectSquare.splice(0,selectSquare.length);
+            //red();
+            selectSquare.push("yellow");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "white" && leftKey) {
+           setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            
+            //pink();
+            selectSquare.push("pink");
+            playerSquare();
+            selector();
+            }, 121);
+        } else if (selectSquare[0] == "pink" && rightKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //pink();
+            selectSquare.push("white");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "pink" && upKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //pink();
+            selectSquare.push("blue");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "pink" && downKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //pink();
+            selectSquare.push("yellow");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "white" && upKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //blue();
+            selectSquare.push("blue");
+            playerSquare();
+            selector();
+            }, 121);
+        } else if (selectSquare[0] == "blue" && downKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //blue();
+            selectSquare.push("white");
+            playerSquare();
+            selector();
+            }, 121);
+        } else if (selectSquare[0] == "blue" && rightKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //blue();
+            selectSquare.push("red");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "blue" && leftKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //blue();
+            selectSquare.push("pink");
+            playerSquare();
+            selector();}, 121);
+            
+        }else if (selectSquare[0] == "white" && downKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //yellow();
+            selectSquare.push("yellow");
+            playerSquare();
+            selector();
+            }, 121);
+        } else if (selectSquare[0] == "yellow" && upKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //yellow();
+            selectSquare.push("white");
+            playerSquare();
+            selector();}, 121);
+            
+        }else if (selectSquare[0] == "yellow" && rightKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //yellow();
+            selectSquare.push("red");
+            playerSquare();
+            selector();
+            }, 121);
+        }else if (selectSquare[0] == "yellow" && leftKey) {
+            
+        setTimeout(function(){
+            selectSquare.splice(0,selectSquare.length);
+            //yellow();
+            selectSquare.push("pink");
+            playerSquare();
+            selector();
+            }, 121);
+        }
+    } else if (gameStarted && playerSelected) {
+
+    }
+}
+
+
+
+//Sound Effects
+function shootsound() {
+    document.getElementById("shootsnd").currentTime = 0;
+    shootsnd.play();
+}
+function stageAdvance() {
+    document.getElementById("stageAd").currentTime = 0;
+    stageAd.play();
+}
+function selector() {
+    document.getElementById("select").currentTime = 0;
+    select.play();
+}
+function selections() {
+    document.getElementById("selection").currentTime = 0;
+    selection.play();
+}
+function gainLife() {
+    document.getElementById("oneup").currentTime = 0;
+    oneup.play();
+}
+function enemyhit() {
+    document.getElementById("enemyht").currentTime = 0;
+    enemyht.play();
+}
+function powering() {
+    document.getElementById("poweredUp").currentTime = 0;
+    poweredUp.play();
+}
+function explosion() {
+    document.getElementById("explode").currentTime = 0;
+    explode.play();
+}
+function bbombSnd() {
+    document.getElementById("bbombSound").currentTime = 0;
+    bbombSound.play();
+}
+function gamemusic() {
+    document.getElementById("music").currentTime = 0;
+    music.play();
+}
+function menuAudio() {
+    document.getElementById("menumusic").currentTime = 0;
+    menumusic.play();
+}
+
+
+window.onload = init;
+</script>
+
+
+<body>
+<canvas id="canvas" width="600" height="600"></canvas>
+</body>
+</html>
