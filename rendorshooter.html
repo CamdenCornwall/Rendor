@@ -164,9 +164,10 @@ for (var i = 0; i < powerTotal; i++) {
     powX += powW;
 }
     
-    function mute() {
-        menuM = true;
-    }
+function menuAudio() {
+    document.getElementById("menumusic").currentTime = 0;
+    menumusic.play();
+}
 
 
 //Clears the canvas so it can be updated
@@ -1161,10 +1162,7 @@ function gamemusic() {
     document.getElementById("music").currentTime = 0;
     music.play();
 }
-function menuAudio() {
-    document.getElementById("menumusic").currentTime = 0;
-    menumusic.play();
-}
+
 
 
 window.onload = init;
@@ -1173,6 +1171,6 @@ window.onload = init;
 
 <body>
 <canvas id="canvas" width="600" height="600"></canvas>
-    <button onclick="mute()">Music</button>
+    <button onclick="menuAudio()">Music</button>
 </body>
 </html>
