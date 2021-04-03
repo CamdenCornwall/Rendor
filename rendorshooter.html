@@ -148,7 +148,7 @@ var canvas,
         descibeW = 30,
         descibeH = 1.25;
         gameStarted = false,
-                //continueGame = false,
+                menuM = false,
 playerSelected = false;
 
 var choice = [];
@@ -165,7 +165,7 @@ for (var i = 0; i < powerTotal; i++) {
 }
     
     function mute() {
-        document.getElementById('menumusic').muted = true;
+        menuM = true;
     }
 
 
@@ -696,7 +696,7 @@ function init() {
     //canvas.addEventListener('keydown', playerSelect, false);
 
     //Sound
-    menuAudio();
+    if(menuM == "true"){menuAudio();}else{}
     gameLoop();
 
 }
